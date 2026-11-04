@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Data and videos
+data/*
+!data/input/
+!data/output/
+!data/.gitkeep
+
+data/input/*
+data/output/*
+!data/input/.gitkeep
+!data/output/.gitkeep
+
+*.mp4
+*.avi
+*.mov
+
+# Model weights
+*.pt
+*.onnx
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db
