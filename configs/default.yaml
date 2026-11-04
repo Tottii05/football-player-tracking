@@ -1,0 +1,40 @@
+project:
+  name: football-player-tracking
+  version: 0.1.0
+
+paths:
+  input_dir: data/input
+  raw_dir: data/raw
+  processed_dir: data/processed
+  annotations_dir: data/annotations
+  output_dir: outputs
+
+video:
+  target_fps: null
+  resize_width: null
+  resize_height: null
+
+detection:
+  confidence_threshold: 0.3
+  nms_threshold: 0.5
+  device: auto
+
+tracking:
+  tracker_type: bytetrack
+  track_activation_threshold: 0.25
+  lost_track_buffer: 30
+  minimum_matching_threshold: 0.8
+
+team_classification:
+  method: color_clustering
+  number_of_teams: 2
+
+calibration:
+  enabled: true
+
+visualization:
+  show_labels: true
+  show_confidence: true
+  show_tracking_ids: true
+  show_minimap: true
+  save_video: true
