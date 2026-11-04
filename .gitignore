@@ -39,3 +39,15 @@ data/output/*
 # OS
 .DS_Store
 Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Testing and coverage
+.coverage
+htmlcov/
+
+# Python build artifacts
+build/
+dist/

@@ -13,6 +13,7 @@ more-itertools
 
 # Utilities
 tqdm
+python-dotenv
 
 # Football computer vision utilities
 git+https://github.com/roboflow/sports.git
