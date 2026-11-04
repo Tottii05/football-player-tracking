@@ -1,0 +1,18 @@
+# Computer Vision and model inference
+inference==1.8.4
+supervision==0.30.9
+
+# Deep Learning
+transformers==5.15.1
+
+# Data processing and machine learning
+numpy==2.2.6
+scikit-learn==1.9.1
+umap-learn
+more-itertools
+
+# Utilities
+tqdm
+
+# Football computer vision utilities
+git+https://github.com/roboflow/sports.git
