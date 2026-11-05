@@ -52,3 +52,9 @@ htmlcov/
 # Python build artifacts
 build/
 dist/
+# RF-DETR fine-tuning outputs
+outputs/rfdetr_nano_football/
+
+# RF-DETR evaluation and visualization outputs
+outputs/rfdetr_test_evaluation/
+outputs/rfdetr_test_preview/
