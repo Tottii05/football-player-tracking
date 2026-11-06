@@ -16,6 +16,7 @@ tqdm
 python-dotenv
 PyYAML
 pytest
+trackers==2.4.0
 
 # Football computer vision utilities
 git+https://github.com/roboflow/sports.git

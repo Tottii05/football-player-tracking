@@ -21,9 +21,11 @@ detection:
 
 tracking:
   tracker_type: bytetrack
-  track_activation_threshold: 0.25
+  track_activation_threshold: 0.35
   lost_track_buffer: 30
-  minimum_matching_threshold: 0.8
+  minimum_iou_threshold: 0.1
+  high_conf_det_threshold: 0.6
+  minimum_consecutive_frames: 2
 
 team_classification:
   method: color_clustering
