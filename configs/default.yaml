@@ -15,7 +15,12 @@ video:
   resize_height: null
 
 detection:
-  confidence_threshold: 0.3
+  confidence_threshold: 0.30
+  class_confidence_thresholds:
+    ball: 0.50
+    goalkeeper: 0.50
+    player: 0.30
+    referee: 0.30
   nms_threshold: 0.5
   device: auto
 

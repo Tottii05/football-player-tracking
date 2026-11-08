@@ -1,7 +1,7 @@
-
 import numpy as np
 import pytest
-
+from types import SimpleNamespace
+from src.football_tracking.detection.detector import RFDETRDetector
 from src.football_tracking.detection.base import Detection, ObjectDetector
 from src.football_tracking.detection.classes import (
     CLASS_TO_ID,
@@ -132,3 +132,106 @@ def test_get_class_id_normalizes_class_name():
 def test_get_class_name_rejects_boolean():
     with pytest.raises(TypeError):
         get_class_name(True)
+
+# RF-DETR detector tests
+
+def test_detector_applies_class_specific_confidence_thresholds():
+    class DummyRFDETRModel:
+        class_names = [
+            "ball",
+            "goalkeeper",
+            "player",
+            "referee",
+        ]
+
+        def predict(self, frame, threshold):
+            self.received_threshold = threshold
+
+            return SimpleNamespace(
+                xyxy=np.array([
+                    [10, 10, 30, 30],
+                    [40, 10, 60, 30],
+                    [70, 10, 90, 30],
+                    [100, 10, 120, 30],
+                ]),
+                confidence=np.array([
+                    0.40,
+                    0.40,
+                    0.40,
+                    0.40,
+                ]),
+                class_id=np.array([0, 1, 2, 3]),
+            )
+
+    model = DummyRFDETRModel()
+
+    detector = RFDETRDetector(
+        checkpoint_path="unused.ckpt",
+        confidence_threshold=0.30,
+        class_confidence_thresholds={
+            "ball": 0.50,
+            "goalkeeper": 0.50,
+            "player": 0.30,
+            "referee": 0.30,
+        },
+        use_fp16=False,
+        model=model,
+    )
+
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    detections = detector.predict(frame)
+
+    assert len(detections) == 2
+
+    detected_classes = [
+        detection.class_name
+        for detection in detections
+    ]
+
+    assert detected_classes == ["player", "referee"]
+
+    detector.close()
+
+
+def test_detector_uses_lowest_configured_inference_threshold():
+    class DummyRFDETRModel:
+        class_names = [
+            "ball",
+            "goalkeeper",
+            "player",
+            "referee",
+        ]
+
+        def predict(self, frame, threshold):
+            self.received_threshold = threshold
+
+            return SimpleNamespace(
+                xyxy=np.empty((0, 4)),
+                confidence=np.array([]),
+                class_id=np.array([]),
+            )
+
+    model = DummyRFDETRModel()
+
+    detector = RFDETRDetector(
+        checkpoint_path="unused.ckpt",
+        confidence_threshold=0.30,
+        class_confidence_thresholds={
+            "ball": 0.50,
+            "goalkeeper": 0.50,
+            "player": 0.20,
+            "referee": 0.40,
+        },
+        use_fp16=False,
+        model=model,
+    )
+
+    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    detections = detector.predict(frame)
+
+    assert detections == []
+    assert model.received_threshold == 0.20
+
+    detector.close()

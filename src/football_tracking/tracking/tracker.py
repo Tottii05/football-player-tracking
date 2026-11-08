@@ -1,28 +1,19 @@
-
 from dataclasses import dataclass
-
 import numpy as np
 import supervision as sv
 from trackers import ByteTrackTracker
-
 from football_tracking.detection.base import Detection
 from football_tracking.detection.classes import get_class_id, get_class_name
 
-
 @dataclass(frozen=True)
 class TrackedObject:
-    """An object associated with a persistent tracking ID."""
-
     track_id: int
     bbox: tuple[float, float, float, float]
     confidence: float
     class_id: int
     class_name: str
 
-
 class ObjectTracker:
-    """Track football players, goalkeepers and referees across frames."""
-
     TRACKABLE_CLASSES = {"player", "goalkeeper", "referee"}
 
     def __init__(
@@ -62,8 +53,6 @@ class ObjectTracker:
         )
 
     def update(self, detections: list[Detection]) -> list[TrackedObject]:
-        """Update tracking state using the detections from the current frame."""
-
         if not isinstance(detections, list):
             raise TypeError("detections must be a list of Detection objects")
 
@@ -81,19 +70,9 @@ class ObjectTracker:
             return []
 
         supervision_detections = sv.Detections(
-            xyxy=np.asarray(
-                [d.bbox for d in trackable],
-                dtype=np.float32,
-            ),
-            confidence=np.asarray(
-                [d.confidence for d in trackable],
-                dtype=np.float32,
-            ),
-            class_id=np.asarray(
-                [get_class_id(d.class_name) for d in trackable],
-                dtype=int,
-            ),
-        )
+            xyxy=np.asarray([d.bbox for d in trackable], dtype=np.float32),
+            confidence=np.asarray([d.confidence for d in trackable], dtype=np.float32),
+            class_id=np.asarray([get_class_id(d.class_name) for d in trackable], dtype=int))
 
         tracked = self._tracker.update(supervision_detections)
 
@@ -102,13 +81,7 @@ class ObjectTracker:
 
         results = []
 
-        for bbox, confidence, class_id, track_id in zip(
-            tracked.xyxy,
-            tracked.confidence,
-            tracked.class_id,
-            tracked.tracker_id,
-        ):
-            # ByteTrack uses -1 for tracks that have not yet been confirmed.
+        for bbox, confidence, class_id, track_id in zip(tracked.xyxy, tracked.confidence, tracked.class_id, tracked.tracker_id):
             if track_id < 0:
                 continue
 
@@ -116,19 +89,9 @@ class ObjectTracker:
                 continue
 
             class_id = int(class_id)
-
             results.append(
-                TrackedObject(
-                    track_id=int(track_id),
-                    bbox=tuple(float(value) for value in bbox),
-                    confidence=float(confidence),
-                    class_id=class_id,
-                    class_name=get_class_name(class_id),
-                )
-            )
-
+                TrackedObject(track_id=int(track_id), bbox=tuple(float(value) for value in bbox), confidence=float(confidence), class_id=class_id, class_name=get_class_name(class_id)))
         return results
 
     def reset(self) -> None:
-        """Clear all tracks. Call when starting a new video."""
         self._tracker.reset()

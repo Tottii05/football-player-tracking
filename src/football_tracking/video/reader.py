@@ -1,110 +1,115 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
+import av
 import cv2
 import numpy as np
 
-@dataclass(frozen=True)
-class VideoMetadata:
-    """Basic metadata describing a video file."""
-    width: int
-    height: int
-    fps: float
-    frame_count: int
-
 class VideoReader:
-    """Read a video file one frame at a time."""
-    def __init__(self, video_path: str | Path) -> None:
+    def __init__(self, video_path: str | Path):
         self.video_path = Path(video_path)
-        self._capture: cv2.VideoCapture | None = None
-        self._metadata: VideoMetadata | None = None
 
-    def open(self) -> None:
-        """Open the video and read its metadata."""
-        if self.is_opened:
-            return
+        if not self.video_path.exists():
+            raise FileNotFoundError(
+                f"Video file not found: {self.video_path}"
+            )
 
-        if not self.video_path.is_file():
-            raise FileNotFoundError(f"Video file not found: {self.video_path}")
-        capture = cv2.VideoCapture(str(self.video_path))
-        if not capture.isOpened():
-            capture.release()
-            raise ValueError(f"Could not open video: {self.video_path}")
+        self.container = av.open(
+            str(self.video_path),
+            options={"ignore_editlist": "1"},
+        )
 
-        width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(capture.get(cv2.CAP_PROP_FPS))
-        frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        video_streams = self.container.streams.video
 
-        if width <= 0 or height <= 0 or fps <= 0:
-            capture.release()
-            raise ValueError(f"Video has invalid metadata: {self.video_path}")
+        if not video_streams:
+            self.container.close()
+            raise ValueError(
+                f"No video stream found: {self.video_path}"
+            )
 
-        self._capture = capture
-        self._metadata = VideoMetadata(width=width, height=height, fps=fps, frame_count=frame_count)
+        self.stream = video_streams[0]
 
-    @property
-    def is_opened(self) -> bool:
-        """Return whether the video is currently open."""
-        return (self._capture is not None and self._capture.isOpened())
+        self.fps = float(self.stream.average_rate or 0)
 
-    @property
-    def metadata(self) -> VideoMetadata:
-        """Return video metadata. The video must be open."""
-        if self._metadata is None:
-            raise RuntimeError("Video metadata is unavailable. Open the video first.")
-        return self._metadata
+        if self.fps <= 0:
+            self.container.close()
+            raise ValueError(
+                f"Invalid video FPS: {self.video_path}"
+            )
 
-    @property
-    def width(self) -> int:
-        return self.metadata.width
+        self.width = self.stream.codec_context.width
+        self.height = self.stream.codec_context.height
 
-    @property
-    def height(self) -> int:
-        return self.metadata.height
+        self.frame_count = self.stream.frames
 
-    @property
-    def fps(self) -> float:
-        return self.metadata.fps
+        if not self.frame_count:
+            self.frame_count = 0
 
-    @property
-    def frame_count(self) -> int:
-        return self.metadata.frame_count
+        self.duration = (
+            float(self.stream.duration * self.stream.time_base)
+            if self.stream.duration is not None
+            else 0.0
+        )
 
-    def read(self) -> np.ndarray | None:
-        """
-        Read the next frame.
-
-        Returns:
-            A BGR image as a NumPy array, or None when the video ends.
-        """
-        if not self.is_opened:
-            raise RuntimeError("Video is not open. Use VideoReader as a context manager or call open() first.")
-        success, frame = self._capture.read()
-
-        if not success:
-            return None
-
-        return frame
+        self._frame_iterator = None
+        self._closed = False
 
     def __iter__(self) -> Iterator[np.ndarray]:
-        """Iterate over all frames until the video ends."""
-        while True:
-            frame = self.read()
-            if frame is None:
-                break
+        """Yield decoded frames in BGR format."""
 
-            yield frame
+        if self._closed:
+            raise RuntimeError("VideoReader is already closed.")
 
-    def close(self) -> None:
-        """Release the video capture resource."""
-        if self._capture is not None:
-            self._capture.release()
-            self._capture = None
+        if self._frame_iterator is None:
+            self._frame_iterator = self.container.decode(
+                self.stream
+            )
 
-    def __enter__(self) -> "VideoReader":
-        self.open()
+        for frame in self._frame_iterator:
+            yield frame.to_ndarray(format="bgr24")
+
+    def read(self) -> tuple[bool, Optional[np.ndarray]]:
+        """Read one frame."""
+
+        if self._closed:
+            return False, None
+
+        if self._frame_iterator is None:
+            self._frame_iterator = self.container.decode(
+                self.stream
+            )
+
+        try:
+            frame = next(self._frame_iterator)
+            return True, frame.to_ndarray(format="bgr24")
+        except StopIteration:
+            return False, None
+    @property
+    def is_opened(self) -> bool:
+        return not self._closed
+
+    def release(self) -> None:
+        """Release video resources."""
+
+        if not self._closed:
+            self.container.close()
+            self._closed = True
+            self._frame_iterator = None
+
+    def get(self, property_id: int) -> float:
+        """Get common video properties."""
+
+        properties = {
+            cv2.CAP_PROP_FPS: self.fps,
+            cv2.CAP_PROP_FRAME_WIDTH: self.width,
+            cv2.CAP_PROP_FRAME_HEIGHT: self.height,
+            cv2.CAP_PROP_FRAME_COUNT: self.frame_count,
+            cv2.CAP_PROP_POS_MSEC: 0.0,
+        }
+
+        return float(properties.get(property_id, 0.0))
+
+    def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        self.close()
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.release()

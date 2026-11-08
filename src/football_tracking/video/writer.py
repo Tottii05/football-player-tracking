@@ -3,8 +3,6 @@ import cv2
 import numpy as np
 
 class VideoWriter:
-    """Write processed frames to a video file."""
-
     def __init__(self, output_path: str | Path, fps: float, frame_size: tuple[int, int], codec: str = "mp4v",) -> None:
         self.output_path = Path(output_path)
         self.fps = float(fps)
